@@ -1,2 +1,2 @@
 requests
-libsql-client
+libsql_experimental

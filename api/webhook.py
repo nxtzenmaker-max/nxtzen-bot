@@ -1,6 +1,6 @@
 import requests, json, os
 from http.server import BaseHTTPRequestHandler
-from libsql_client import create_client_sync
+import libsql_experimental as libsql
 
 # ── CONFIG ───────────────────────────────────────────────────
 BOT_TOKEN   = os.environ.get("BOT_TOKEN", "PUT_YOUR_BOT_TOKEN_HERE")
@@ -13,7 +13,7 @@ TURSO_TOKEN = os.environ.get("TURSO_TOKEN", "")
 # ─────────────────────────────────────────────────────────────
 
 def get_db():
-    return create_client_sync(url=TURSO_URL, auth_token=TURSO_TOKEN)
+    return libsql.connect(database=TURSO_URL, auth_token=TURSO_TOKEN)
 
 def db_init():
     db = get_db()
