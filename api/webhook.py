@@ -1,6 +1,5 @@
 import requests, json, os
 from http.server import BaseHTTPRequestHandler
-import libsql_experimental as libsql
 
 # ── CONFIG ───────────────────────────────────────────────────
 BOT_TOKEN   = os.environ.get("BOT_TOKEN", "PUT_YOUR_BOT_TOKEN_HERE")
