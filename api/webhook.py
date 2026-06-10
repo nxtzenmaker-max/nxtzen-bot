@@ -1,4 +1,5 @@
-import requests, json, os, threading
+import requests, json, os
+from http.server import BaseHTTPRequestHandler
 from libsql_client import create_client_sync
 
 # ── CONFIG ───────────────────────────────────────────────────
@@ -56,8 +57,6 @@ def get_admin_token():
         return res["token"]
     return None
 
-# ── TELEGRAM HELPERS ─────────────────────────────────────────
-
 def tg(method, **kwargs):
     try:
         r = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/{method}", json=kwargs, timeout=10)
@@ -81,8 +80,6 @@ def send_msg(chat_id, text, keyboard=None):
 def delete_msg(chat_id, msg_id):
     tg("deleteMessage", chat_id=chat_id, message_id=msg_id)
 
-# ── API HELPERS ──────────────────────────────────────────────
-
 def api_get(token, path):
     try:
         r = requests.get(f"{API_URL}{path}", headers={"X-Token": token}, timeout=10)
@@ -104,8 +101,6 @@ def api_delete(token, path):
         return r.json()
     except:
         return {}
-
-# ── KEYBOARDS ────────────────────────────────────────────────
 
 def main_menu_kb():
     return {"inline_keyboard": [
@@ -141,8 +136,6 @@ def bot_config_kb(configured):
         kb.append([{"text": "🗑 Delete Bot", "callback_data": "delete_bot"}])
     kb.append([{"text": "⬅️ Back", "callback_data": "back_menu"}])
     return {"inline_keyboard": kb}
-
-# ── HANDLERS ─────────────────────────────────────────────────
 
 def handle_start(chat_id, msg_id=None):
     text = "<blockquote>🤖 <b>NxtZen Panel Bot</b></blockquote>\n\nWelcome! Please login to access your panel."
@@ -543,31 +536,30 @@ def handle_message(msg, user_id):
             db_del(f"state:{user_id}")
             if msg_id: edit_msg(chat_id, msg_id, f"<blockquote>✅ <b>{len(nums)} numbers</b> forwarded!</blockquote>", back_kb())
 
-# ── VERCEL ENTRY POINT ───────────────────────────────────────
+# ── VERCEL HANDLER ───────────────────────────────────────────
 
-def handler(request):
-    from http.server import BaseHTTPRequestHandler
-    import json as _json
+class handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            update = json.loads(body)
+            db_init()
+            if "callback_query" in update:
+                cb = update["callback_query"]
+                handle_callback(cb, cb["from"]["id"])
+            elif "message" in update:
+                msg = update["message"]
+                uid = msg.get("from", {}).get("id", 0)
+                if msg["chat"]["type"] == "private":
+                    handle_message(msg, uid)
+        except Exception as e:
+            print(f"Handler error: {e}")
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"ok")
 
-    class Handler(BaseHTTPRequestHandler):
-        def do_POST(self):
-            length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(length)
-            try:
-                update = _json.loads(body)
-                db_init()
-                if "callback_query" in update:
-                    cb = update["callback_query"]
-                    handle_callback(cb, cb["from"]["id"])
-                elif "message" in update:
-                    msg = update["message"]
-                    uid = msg.get("from", {}).get("id", 0)
-                    if msg["chat"]["type"] == "private":
-                        handle_message(msg, uid)
-            except Exception as e:
-                print(f"Handler error: {e}")
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b"ok")
-
-    return Handler
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"NxtZen Bot OK")
