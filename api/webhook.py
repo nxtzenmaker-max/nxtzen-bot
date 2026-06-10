@@ -554,7 +554,9 @@ class handler(BaseHTTPRequestHandler):
                 if msg["chat"]["type"] == "private":
                     handle_message(msg, uid)
         except Exception as e:
+            import traceback
             print(f"Handler error: {e}")
+            print(traceback.format_exc())
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"ok")
