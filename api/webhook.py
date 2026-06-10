@@ -68,7 +68,9 @@ def edit_msg(chat_id, msg_id, text, keyboard=None):
     payload = {"chat_id": chat_id, "message_id": msg_id, "text": text, "parse_mode": "HTML"}
     if keyboard:
         payload["reply_markup"] = json.dumps(keyboard)
-    tg("editMessageText", **payload)
+    result = tg("editMessageText", **payload)
+    if not result.get("ok"):
+        send_msg(chat_id, text, keyboard)
 
 def send_msg(chat_id, text, keyboard=None):
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
