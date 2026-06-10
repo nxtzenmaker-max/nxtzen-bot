@@ -11,38 +11,44 @@ TURSO_URL   = os.environ.get("TURSO_URL", "")
 TURSO_TOKEN = os.environ.get("TURSO_TOKEN", "")
 # ─────────────────────────────────────────────────────────────
 
-def get_db():
-    return libsql.connect(database=TURSO_URL, auth_token=TURSO_TOKEN)
+def turso_query(sql, args=[]):
+    try:
+        r = requests.post(
+            f"{TURSO_URL}/v2/pipeline",
+            headers={"Authorization": f"Bearer {TURSO_TOKEN}", "Content-Type": "application/json"},
+            json={"requests": [
+                {"type": "execute", "stmt": {"sql": sql, "args": [{"type": "text", "value": str(a)} for a in args]}},
+                {"type": "close"}
+            ]},
+            timeout=10
+        )
+        return r.json()
+    except Exception as e:
+        print(f"turso_query error: {e}")
+        return {}
 
 def db_init():
-    db = get_db()
-    db.execute("CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT)")
-    db.close()
+    turso_query("CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT)")
 
 def db_get(key):
     try:
-        db = get_db()
-        rs = db.execute("SELECT v FROM kv WHERE k = ?", [key])
-        db.close()
-        if rs.rows:
-            return json.loads(rs.rows[0][0])
+        res = turso_query("SELECT v FROM kv WHERE k = ?", [key])
+        rows = res["results"][0]["response"]["result"]["rows"]
+        if rows:
+            return json.loads(rows[0][0]["value"])
     except:
         pass
     return None
 
 def db_set(key, value):
     try:
-        db = get_db()
-        db.execute("INSERT OR REPLACE INTO kv (k, v) VALUES (?, ?)", [key, json.dumps(value)])
-        db.close()
+        turso_query("INSERT OR REPLACE INTO kv (k, v) VALUES (?, ?)", [key, json.dumps(value)])
     except Exception as e:
         print(f"db_set error: {e}")
 
 def db_del(key):
     try:
-        db = get_db()
-        db.execute("DELETE FROM kv WHERE k = ?", [key])
-        db.close()
+        turso_query("DELETE FROM kv WHERE k = ?", [key])
     except:
         pass
 
